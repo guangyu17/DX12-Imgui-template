@@ -64,19 +64,13 @@ HRESULT Present(IDXGISwapChain3* gpSwapChain, UINT SyncInterval, UINT Flags)
    
     if (Config::GetIsImgui() and Dx12Hook.ISHOOKDX12)
     {
-        {
-            if (!Gimgui.isDX12Init) {
-                STdebug_printf("[HkPresent] Present Hooked!\n");
-                Dx12Hook.SetWndprocHook(HookWndProc);
-                if (!Gimgui.InitImgui(gpSwapChain, Dx12Hook.GHwnd)) {
-                STdebug_printf("[HkPresent] 初始化失败\n");
-                return Dx12Hook.OriginalPresent(gpSwapChain, SyncInterval, Flags);
-                }
+        if (!Gimgui.isDX12Init) {
+            STdebug_printf("[HkPresent] Init ImGui!\n");
+            Dx12Hook.SetWndprocHook(HookWndProc);
+            if (!Gimgui.InitImgui(gpSwapChain, Dx12Hook.GHwnd)) {
+            STdebug_printf("[HkPresent] Init failed\n");
+            goto return_gamePresent;
             }
-            else {
-                STdebug_printf("[HkPresent] next f\n");
-            }
-            
         }
         
 
@@ -91,21 +85,12 @@ HRESULT Present(IDXGISwapChain3* gpSwapChain, UINT SyncInterval, UINT Flags)
             ImGui::End(); //imgui菜单尾
         }
         ImGui::ShowDemoWindow();
-        STdebug_printf("[HkPresent] UI Print Finished\n");
 
         
         Gimgui.ImGuiFinal(gpSwapChain);
-        return Dx12Hook.OriginalPresent(gpSwapChain, SyncInterval, Flags);
     }
-    else {
-       
-        return Dx12Hook.OriginalPresent(gpSwapChain, SyncInterval, Flags);
-    } 
-
-
-
-
-
+return_gamePresent:
+    return Dx12Hook.OriginalPresent(gpSwapChain, SyncInterval, Flags);
 };
 
 

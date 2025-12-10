@@ -66,7 +66,6 @@ public:
     HANDLE gFenceEvent = nullptr;
     UINT64 gFenceValue = 0; // 用于追踪的栅栏值
     //UINT64 gFenceLastValue = 0; // 用于追踪的栅栏值
-    HANDLE g_hSwapChainWaitableObject = nullptr;
 	 ImGuiIO* io = nullptr;
 	 bool isDX12Init = false;//判断是否需要进行初始化
 

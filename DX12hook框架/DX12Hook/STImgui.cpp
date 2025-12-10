@@ -28,8 +28,9 @@ bool STIMGUI::InitImgui(IDXGISwapChain3* pSwapChain,HWND GHwnd)
                 io->Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\msyh.ttc", 18.f, NULL, io->Fonts->GetGlyphRangesChineseFull());//使其支持中文
                 ImguiDrawFunc::Setstyle();
                 isDX12reInit = true;//这部分在d3d重新设置时不需要再初始化
+                STdebug_printf("[IMGUI device building]     DX12 ImGui Init Success!\n");
             }
-            STdebug_printf("[IMGUI device building] DX12 ImGui Init Success!\n");
+            
             
             
 
@@ -85,10 +86,8 @@ bool STIMGUI::InitImgui(IDXGISwapChain3* pSwapChain,HWND GHwnd)
                 if (gDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&g_pd3dRtvDescHeap)) != S_OK)
                     return false;
                 SIZE_T rtvDescriptorSize = gDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-                STdebug_printf("[IMGUI device building]         rtvDescriptorSize \n");
-                
                 D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = g_pd3dRtvDescHeap->GetCPUDescriptorHandleForHeapStart();
-                STdebug_printf("[IMGUI device building]         D3D12_CPU_DESCRIPTOR_HANDLE \n");
+                
                 for (UINT i = 0; i < gBuffersCounts; i++)
                 {
                     ID3D12Resource* pBackBuffer = nullptr;
@@ -99,10 +98,11 @@ bool STIMGUI::InitImgui(IDXGISwapChain3* pSwapChain,HWND GHwnd)
                     rtvHandle.ptr += rtvDescriptorSize;
                     gFrameContext[i].FenceValue = 0;
                 }
+                STdebug_printf("[IMGUI device building]         Rtv build Success\n");
             }
 
-            g_hSwapChainWaitableObject = pSwapChain->GetFrameLatencyWaitableObject();
-            STdebug_printf("[IMGUI device building] GetFrameLatencyWaitableObject");
+            /*g_hSwapChainWaitableObject = pSwapChain->GetFrameLatencyWaitableObject();
+            STdebug_printf("[IMGUI device building]     GetFrameLatencyWaitableObject\n");*/
 
             
 
@@ -125,7 +125,7 @@ bool STIMGUI::InitImgui(IDXGISwapChain3* pSwapChain,HWND GHwnd)
             STdebug_printf("[IMGUI device building]     DX12 ImGui_ImplDX12_Init Success!\n");
 
             if(!ImGui_ImplDX12_CreateDeviceObjects()) return false;
-            STdebug_printf("[IMGUI device building]     DX12 ImGui_ImplDX12_CreateDeviceObjects Success!\n");
+            STdebug_printf("[IMGUI device building]     DX12 SrvDescriptorFreeFn created Success!\n");
             isDX12Init = true;
             }
             
@@ -146,9 +146,12 @@ void STIMGUI::ResizeImgui(IDXGISwapChain3* pSwapChain)
     
     if (!isDX12Init)
         return;
-    ImGui_ImplWin32_Shutdown();
-    ImGui_ImplDX12_Shutdown();
-    ImGui::DestroyContext();
+    
+    WaitForPendingOperations();
+    /*ImGui_ImplWin32_Shutdown();*/
+    ImGui_ImplDX12_Shutdown();/*
+    ImGui::DestroyContext();*/
+    CloseHandle(gFenceEvent);
     // 4. 释放所有 FrameContext 资源 (Back Buffers)
     for (size_t i = 0; i < gBuffersCounts; i++) {
         if (g_mainRenderTargetResource[i]) {
@@ -157,7 +160,7 @@ void STIMGUI::ResizeImgui(IDXGISwapChain3* pSwapChain)
         }
         // 命令分配器 CommandAllocator 通常不需要释放，但如果在 InitImgui 中分配了新的，这里也应该清理
         if (gFrameContext[i].CommandAllocator) {
-            // gFrameContext[i].CommandAllocator->Release(); // 取决于您 InitImgui 中的分配方式
+            gFrameContext[i].CommandAllocator->Release(); // 取决于您 InitImgui 中的分配方式
         }
     }
 
@@ -172,11 +175,12 @@ void STIMGUI::ResizeImgui(IDXGISwapChain3* pSwapChain)
     if (g_pd3dRtvDescHeap) g_pd3dRtvDescHeap->Release(); // RTV 堆
 
     // 7. 释放您自己的同步资源 (如果它们是在 Hook 成功后创建的)
-    // if (gFence) gFence->Release(); 
-    // if (gFenceEvent) CloseHandle(gFenceEvent); 
+    if (gFence) gFence->Release();
+    if (gFenceEvent) CloseHandle(gFenceEvent);
 
     // 8. 重置 ImGui 描述符分配器追踪 (如果您使用了自定义分配器)
-    // g_pd3dSrvDescHeapAlloc.Destroy(); 
+    g_pd3dSrvDescHeapAlloc.Destroy();
+
 
     // 9. 重置状态标志
     gCommandList = nullptr;
@@ -184,8 +188,9 @@ void STIMGUI::ResizeImgui(IDXGISwapChain3* pSwapChain)
     g_pd3dRtvDescHeap = nullptr;
     gBuffersCounts = 0;
 
+
     isDX12Init = false;
-    isDX12reInit = false; // 如果您想在重置后重新加载字体，则重置此标志
+    isDX12reInit = true; // 如果您想在重置后重新加载字体，则重置此标志
 }
 
 void STIMGUI::WaitForPendingOperations()
@@ -296,14 +301,13 @@ void STIMGUI::ImGuiFinal(IDXGISwapChain3* pSwapChain) {
     gCommandList->Reset(frameCtx->CommandAllocator, nullptr);
     gCommandList->ResourceBarrier(1, &Barrier);
 
-    STdebug_printf("[ImGuiFinal] Barrier Finished\n");
+    
 
     gCommandList->OMSetRenderTargets(1, &g_mainRenderTargetDescriptor[backBufferIdx], FALSE, nullptr);
     gCommandList->SetDescriptorHeaps(1, &g_pd3dSrvDescHeap);
 
 
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), gCommandList);
-    STdebug_printf("[ImGuiFinal] ImGui_ImplDX12_RenderDrawData Finished\n");
     Barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
     Barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
     gCommandList->ResourceBarrier(1, &Barrier);
@@ -313,7 +317,6 @@ void STIMGUI::ImGuiFinal(IDXGISwapChain3* pSwapChain) {
    HRESULT hr= gCommandQueue->Signal(gFence, ++gfenceLastSignaledValue);
 
     frameCtx->FenceValue = gfenceLastSignaledValue;
-    STdebug_printf("[ImGuiFinal] Finished\n");
     g_frameIndex++;
 };
 
@@ -322,5 +325,51 @@ void STIMGUI::ImGuiFinal(IDXGISwapChain3* pSwapChain) {
 
 
 void STIMGUI::release() {
-  
+    if (!isDX12Init)
+        return;
+    ImGui_ImplWin32_Shutdown();
+    ImGui_ImplDX12_Shutdown();
+    ImGui::DestroyContext();
+    CloseHandle(gFenceEvent);
+
+
+    // 4. 释放所有 FrameContext 资源 (Back Buffers)
+    for (size_t i = 0; i < gBuffersCounts; i++) {
+        if (g_mainRenderTargetResource[i]) {
+            g_mainRenderTargetResource[i]->Release();
+            g_mainRenderTargetResource[i] = nullptr;
+        }
+        // 命令分配器 CommandAllocator 通常不需要释放，但如果在 InitImgui 中分配了新的，这里也应该清理
+        if (gFrameContext[i].CommandAllocator) {
+            gFrameContext[i].CommandAllocator->Release(); // 取决于您 InitImgui 中的分配方式
+        }
+    }
+
+    // 5. 释放 FrameContext 数组本身
+    if (gFrameContext) {
+        delete[] gFrameContext;
+        gFrameContext = nullptr;
+    }
+    // 6. 释放 DX12 资源
+    if (gCommandList) gCommandList->Release();
+    if (g_pd3dSrvDescHeap) g_pd3dSrvDescHeap->Release(); // ImGui SRV 堆
+    if (g_pd3dRtvDescHeap) g_pd3dRtvDescHeap->Release(); // RTV 堆
+
+    // 7. 释放您自己的同步资源 (如果它们是在 Hook 成功后创建的)
+     if (gFence) gFence->Release(); 
+     if (gFenceEvent) CloseHandle(gFenceEvent); 
+
+    // 8. 重置 ImGui 描述符分配器追踪 (如果您使用了自定义分配器)
+     g_pd3dSrvDescHeapAlloc.Destroy(); 
+
+
+    // 9. 重置状态标志
+    gCommandList = nullptr;
+    g_pd3dSrvDescHeap = nullptr;
+    g_pd3dRtvDescHeap = nullptr;
+    gBuffersCounts = 0;
+
+    isDX12Init = false;
+    isDX12reInit = false; // 如果您想在重置后重新加载字体，则重置此标志
+    
 }
