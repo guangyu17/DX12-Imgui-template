@@ -26,6 +26,8 @@ bool STIMGUI::InitImgui(IDXGISwapChain3* pSwapChain,HWND GHwnd)
                 io->LogFilename = nullptr;//保存log文件 null为不保存
                 /*io->Fonts->AddFontDefault();*/
                 io->Fonts->AddFontFromFileTTF("C:\\Windows\\Fonts\\msyh.ttc", 18.f, NULL, io->Fonts->GetGlyphRangesChineseFull());//使其支持中文
+
+                ImGui::SetMouseCursor(ImGuiMouseCursor_None);
                 ImguiDrawFunc::Setstyle();
                 isDX12reInit = true;//这部分在d3d重新设置时不需要再初始化
                 STdebug_printf("[IMGUI device building]     DX12 ImGui Init Success!\n");
@@ -371,5 +373,5 @@ void STIMGUI::release() {
 
     isDX12Init = false;
     isDX12reInit = false; // 如果您想在重置后重新加载字体，则重置此标志
-    
+
 }

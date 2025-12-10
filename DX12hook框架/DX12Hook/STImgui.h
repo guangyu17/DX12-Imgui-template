@@ -42,37 +42,35 @@ public:
     
 
 	// Data
+private:
 	
-	ID3D12Device* gDevice = nullptr;
     ID3D12DescriptorHeap* g_pd3dRtvDescHeap;//gDescriptorHeapBackBuffers g_pd3dRtvDescHeap
     ID3D12DescriptorHeap* g_pd3dSrvDescHeap;//gDescriptorHeapImGuiRender g_pd3dSrvDescHeap
     ID3D12GraphicsCommandList* gCommandList;
-    ID3D12CommandQueue* gCommandQueue;
     UINT64 gfenceLastSignaledValue = 0;
     ID3D12Resource** g_mainRenderTargetResource;
     D3D12_CPU_DESCRIPTOR_HANDLE*  g_mainRenderTargetDescriptor;
-
-
-
     struct _FrameContext {
         ID3D12CommandAllocator* CommandAllocator;
         UINT64 FenceValue;
     };
-
     UINT_PTR gBuffersCounts = -1;
     _FrameContext* gFrameContext;
-
     ID3D12Fence* gFence = nullptr;
     HANDLE gFenceEvent = nullptr;
     UINT64 gFenceValue = 0; // 用于追踪的栅栏值
+
+
     //UINT64 gFenceLastValue = 0; // 用于追踪的栅栏值
-	 ImGuiIO* io = nullptr;
-	 bool isDX12Init = false;//判断是否需要进行初始化
-
-	 bool isDX12reInit = false; //resize后重新初始化
+	 
 public:
-	bool MenuOpen = 1;
+    ID3D12Device* gDevice = nullptr;
+    ID3D12CommandQueue* gCommandQueue;
 
+    ImGuiIO* io = nullptr;
+    bool isDX12Init = false;//判断是否需要进行初始化
+    bool isDX12reInit = false; //resize后重新初始化
+	bool MenuOpen = 0;
 
 private:
     int g_frameIndex = 0;

@@ -52,6 +52,13 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 
 
     }
+    case DLL_PROCESS_DETACH: {
+
+        Dx12Hook.RemoveHookDx12();
+        Dx12Hook.RemoveWndProcHook();
+        Gimgui.release();
+        break;
+    }
     break;
     }
     return true;
@@ -68,12 +75,24 @@ HRESULT Present(IDXGISwapChain3* gpSwapChain, UINT SyncInterval, UINT Flags)
             STdebug_printf("[HkPresent] Init ImGui!\n");
             Dx12Hook.SetWndprocHook(HookWndProc);
             if (!Gimgui.InitImgui(gpSwapChain, Dx12Hook.GHwnd)) {
-            STdebug_printf("[HkPresent] Init failed\n");
-            goto return_gamePresent;
+               /* Dx12Hook.RemoveWndProcHook();*/
+                STdebug_printf("[HkPresent] Init failed\n");
+                goto return_gamePresent;
             }
         }
-        
 
+        if (Gimgui.MenuOpen) {
+            // 菜单打开时：让 ImGui 画一个光标，或者允许显示系统光标
+            Gimgui.io->MouseDrawCursor = true;
+            Gimgui.io->ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
+            // 或者使用 Gimgui.io->ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange; 来允许 ImGui 切换系统光标
+        }
+        else {
+            // 菜单关闭时：隐藏 ImGui 光标
+            Gimgui.io->ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
+            Gimgui.io->MouseDrawCursor = false;
+        }
+        
 
 
         ImGui_ImplDX12_NewFrame();
@@ -81,10 +100,18 @@ HRESULT Present(IDXGISwapChain3* gpSwapChain, UINT SyncInterval, UINT Flags)
         ImGui::NewFrame();
         {
             ImGui::Begin(u8"ST", &Gimgui.MenuOpen, ImGuiWindowFlags_AlwaysAutoResize);
-            ImGui::Text(u8"测试z");
+            if (Gimgui.MenuOpen) {
+                ImGui::Text(u8"测试");
+                ImGui::Text(u8"fps :%0.1f", Gimgui.io->Framerate);
+                
+            }
             ImGui::End(); //imgui菜单尾
+
+            if(Gimgui.MenuOpen)
+            {
+                ImGui::ShowDemoWindow();
+            }
         }
-        ImGui::ShowDemoWindow();
 
         
         Gimgui.ImGuiFinal(gpSwapChain);
@@ -111,6 +138,7 @@ LRESULT WINAPI HookWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     switch (msg)
     {
     case WM_KEYDOWN: {
+        //STdebug_printf("[Hkwndproc message]         message: 0X%X\n", wParam);
         if (wParam == VK_INSERT) {
             if (Gimgui.MenuOpen) {
                 Gimgui.MenuOpen = 0;
@@ -131,7 +159,17 @@ LRESULT WINAPI HookWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         //}//长按开启aimbot 功能测试
         break;
     }
-
+    case WM_SETCURSOR: {
+        if (!Gimgui.MenuOpen) {
+            SetCursor(NULL);
+            //如果菜单打开，阻止游戏设置光标
+            return TRUE;
+        }
+        else {
+            
+        }
+        break;
+    }
     default:
         break;
     }
@@ -150,7 +188,7 @@ LRESULT WINAPI HookWndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 void hkExecuteCommandLists(ID3D12CommandQueue* queue, UINT NumCommandLists, ID3D12CommandList* ppCommandLists) {
 
-
+    //获取实际使用的CommandQueue和Device 用于imgui初始化
     if (!Gimgui.gCommandQueue) {
         ID3D12Device* queueDevice = nullptr;
         if (SUCCEEDED(queue->GetDevice(__uuidof(ID3D12Device), (void**)&queueDevice))) {
