@@ -68,7 +68,6 @@ BOOL APIENTRY DllMain(HMODULE hModule,
 
 HRESULT Present(IDXGISwapChain3* gpSwapChain, UINT SyncInterval, UINT Flags)
 {
-   
     if (Config::GetIsImgui() and Dx12Hook.ISHOOKDX12)
     {
         if (!Gimgui.isDX12Init) {

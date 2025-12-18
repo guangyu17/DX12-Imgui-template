@@ -8,6 +8,7 @@ void HookVTB(unsigned long long* swapvtable, int idx, void* new_add) {
     VirtualProtect(swapvtable, sizeof(unsigned long long) * (idx + 1), PAGE_EXECUTE_READWRITE, Protect);
     swapvtable[idx] = (unsigned long long)new_add;
     VirtualProtect(swapvtable, sizeof(unsigned long long) * (idx + 1), *Protect, Protect);
+    delete Protect;
 };
 enum VFuncIndex{
     ExecuteCommandLists = 10,
