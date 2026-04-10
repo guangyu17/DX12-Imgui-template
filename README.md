@@ -1,5 +1,5 @@
 # DX12 渲染管线 API 拦截与受限环境下的输入层重构框架
-
+![Gametest.png](https://github.com/guangyu17/DX12hook-/blob/master/Game%20hook%20test.png)
 ## 项目概述
 
 本项目旨在研究与实现针对 DirectX 12 渲染管线的底层拦截技术。通过脱离对第三方成熟库（如 MinHook）的依赖，本项目自主实现了一套轻量级的 API 拦截机制（API Interception / Method Overriding），成功挂钩了 DX12 SwapChain 及 CommandQueue 的五个核心渲染函数。该框架可用于图形渲染调试、性能监控（Overlay）以及自定义 UI 的无缝嵌入。
